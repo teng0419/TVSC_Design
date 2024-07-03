@@ -62,6 +62,10 @@
             </form>
         </div>
 
+        <div id="loadingIndicator" class="bg-white shadow-md rounded px-8 py-4 mb-4 text-center text-xl font-bold" style="display: none;">
+            正在加載數據...
+        </div>
+
         <div id="results" class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4" style="display: none;">
             <h2 class="text-xl font-bold mb-4">計算結果</h2>
             <div id="allResults">
@@ -82,6 +86,11 @@
                 <h3 class="text-lg font-semibold mb-2">根據VWR最佳化的設計結果</h3>
                 <table id="vwrOptimalDesignTable" class="min-w-full bg-white"></table>
             </div>
+        </div>
+
+        <div id="rawDataSample" class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4" style="display: none;">
+            <h3 class="text-lg font-semibold mb-2">原始數據樣本（前5行）：</h3>
+            <pre class="overflow-x-auto"></pre>
         </div>
     </div>
 
@@ -148,26 +157,33 @@
             gapi.client.setToken('');
             document.getElementById('calculatorForm').style.display = 'none';
             document.getElementById('results').style.display = 'none';
+            document.getElementById('rawDataSample').style.display = 'none';
             document.getElementById('authorize_button').style.display = 'inline-block';
             document.getElementById('signout_button').style.display = 'none';
         }
     }
 
     async function loadData(h_TVSC) {
+        console.log(`正在嘗試讀取 ${h_TVSC.toFixed(1)}m.csv`);
         const fileName = `${h_TVSC.toFixed(1)}m.csv`;
         const response = await gapi.client.drive.files.list({
             q: `name='${fileName}' and '${FOLDER_ID}' in parents`,
             fields: 'files(id, name)'
         });
 
+        console.log('API 響應:', response);
+
         if (response.result.files && response.result.files.length > 0) {
+            console.log('找到文件:', response.result.files[0]);
             const fileId = response.result.files[0].id;
             const fileResponse = await gapi.client.drive.files.get({
                 fileId: fileId,
                 alt: 'media'
             });
+            console.log('文件內容:', fileResponse.body.slice(0, 200) + '...');  // 只顯示前200個字符
             return Papa.parse(fileResponse.body, { header: true, dynamicTyping: true }).data;
         } else {
+            console.error('未找到文件');
             throw new Error('File not found');
         }
     }
@@ -180,6 +196,10 @@
 
     document.getElementById('calculatorForm').addEventListener('submit', async function(e) {
         e.preventDefault();
+        document.getElementById('loadingIndicator').style.display = 'block';
+        document.getElementById('results').style.display = 'none';
+        document.getElementById('rawDataSample').style.display = 'none';
+
         const h_TVSC = parseFloat(document.getElementById('h_TVSC').value);
         const theta = parseFloat(document.getElementById('theta').value);
         const d = parseInt(document.getElementById('d').value);
@@ -189,16 +209,23 @@
 
         try {
             const allData = await loadData(h_TVSC);
+            console.log('加載的數據:', allData.slice(0, 5));  // 顯示前5行數據
             const filteredData = filterData(allData, d, bf, Vy, Kel);
 
             if (filteredData.length > 0) {
                 displayResults(filteredData);
+                // 顯示原始數據樣本
+                const rawDataSample = document.getElementById('rawDataSample');
+                rawDataSample.querySelector('pre').textContent = JSON.stringify(allData.slice(0, 5), null, 2);
+                rawDataSample.style.display = 'block';
             } else {
                 alert('非常抱歉~沒有找到符合篩選條件的結果。');
             }
         } catch (error) {
-            console.error('錯誤:', error);
-            alert('計算過程中出現錯誤，請稍後再試。');
+            console.error('數據加載錯誤:', error);
+            alert(`設計過程中出現錯誤：${error.message}`);
+        } finally {
+            document.getElementById('loadingIndicator').style.display = 'none';
         }
     });
 
