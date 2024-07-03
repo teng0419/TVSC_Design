@@ -163,35 +163,42 @@
         }
     }
 
-    async function loadData(h_TVSC) {
-        console.log(`正在嘗試讀取 ${h_TVSC.toFixed(1)}m.csv`);
-        const fileName = `${h_TVSC.toFixed(1)}m.csv`;
-        const response = await gapi.client.drive.files.list({
-            q: `name='${fileName}' and '${FOLDER_ID}' in parents`,
-            fields: 'files(id, name)'
-        });
+    async function loadData(h_TVSC, theta) {
+        console.log(`正在嘗試讀取 ${h_TVSC.toFixed(1)}m, ${theta.toFixed(1)}% 的數據`);
+        const fileName = `TVSC_Sections_ALL_Stiffener_${h_TVSC.toFixed(1)}m_${theta.toFixed(1)}%.xlsx`;
+        const folderName = `${h_TVSC.toFixed(1)}m`;
+        const filePath = `${FOLDER_ID}/${folderName}/${fileName}`;
 
-        console.log('API 響應:', response);
-
-        if (response.result.files && response.result.files.length > 0) {
-            console.log('找到文件:', response.result.files[0]);
-            const fileId = response.result.files[0].id;
-            const fileResponse = await gapi.client.drive.files.get({
-                fileId: fileId,
-                alt: 'media'
+        try {
+            const response = await gapi.client.drive.files.list({
+                q: `name='${fileName}' and '${FOLDER_ID}' in parents`,
+                fields: 'files(id, name)'
             });
-            console.log('文件內容:', fileResponse.body.slice(0, 200) + '...');  // 只顯示前200個字符
-            return Papa.parse(fileResponse.body, { header: true, dynamicTyping: true }).data;
-        } else {
-            console.error('未找到文件');
-            throw new Error('File not found');
+
+            if (response.result.files && response.result.files.length > 0) {
+                const fileId = response.result.files[0].id;
+                const fileResponse = await gapi.client.drive.files.get({
+                    fileId: fileId,
+                    alt: 'media'
+                });
+                console.log('文件內容:', fileResponse.body.slice(0, 200) + '...');
+                return Papa.parse(fileResponse.body, { header: true, dynamicTyping: true }).data;
+            } else {
+                throw new Error('File not found');
+            }
+        } catch (error) {
+            console.error('Error loading data:', error);
+            throw error;
         }
     }
 
     function filterData(data, d, bf, Vy, Kel) {
         return data.filter(row => 
-            row.d === d && row.bf === bf && row.Vn_IC > Vy && row.Keff > Kel
-        );
+            row.d === d && row.bf === bf && row['Vn_IC'] > Vy && row['Keff'] > Kel
+        ).map(row => {
+            const { 'Mn_EJ': mnEj, 'Mn_IC': mnIc, 'rd': rd, 'theta_y': thetaY, 'theta_ed': thetaEd, ...rest } = row;
+            return rest;
+        });
     }
 
     document.getElementById('calculatorForm').addEventListener('submit', async function(e) {
@@ -208,8 +215,7 @@
         const Kel = parseFloat(document.getElementById('Kel').value);
 
         try {
-            const allData = await loadData(h_TVSC);
-            console.log('加載的數據:', allData.slice(0, 5));  // 顯示前5行數據
+            const allData = await loadData(h_TVSC, theta);
             const filteredData = filterData(allData, d, bf, Vy, Kel);
 
             if (filteredData.length > 0) {
@@ -233,16 +239,7 @@
         document.getElementById('results').style.display = 'block';
 
         // 顯示所有結果
-        const allResultsTable = document.getElementById('allResultsTable');
-        allResultsTable.innerHTML = '';
-        if (results.length > 0) {
-            const headers = Object.keys(results[0]);
-            let headerRow = '<tr>' + headers.map(h => `<th class="px-4 py-2 bg-gray-100">${h}</th>`).join('') + '</tr>';
-            let rows = results.map(row => 
-                '<tr>' + headers.map(h => `<td class="border px-4 py-2">${row[h]}</td>`).join('') + '</tr>'
-            ).join('');
-            allResultsTable.innerHTML = headerRow + rows;
-        }
+        displayTable('allResultsTable', results);
 
         // 顯示最輕設計
         const lightestDesign = results.reduce((min, p) => p.W_total < min.W_total ? p : min, results[0]);
@@ -255,6 +252,19 @@
         // 顯示VWR最佳化設計
         const vwrOptimalDesign = results.reduce((max, p) => p.VWR > max.VWR ? p : max, results[0]);
         displayDesign('vwrOptimalDesignTable', vwrOptimalDesign);
+    }
+
+    function displayTable(tableId, data) {
+        const table = document.getElementById(tableId);
+        table.innerHTML = '';
+        if (data.length > 0) {
+            const headers = Object.keys(data[0]);
+            let headerRow = '<tr>' + headers.map(h => `<th class="px-4 py-2 bg-gray-100">${h}</th>`).join('') + '</tr>';
+            let rows = data.map(row => 
+                '<tr>' + headers.map(h => `<td class="border px-4 py-2">${row[h]}</td>`).join('') + '</tr>'
+            ).join('');
+            table.innerHTML = headerRow + rows;
+        }
     }
 
     function displayDesign(tableId, design) {
