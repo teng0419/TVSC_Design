@@ -167,16 +167,19 @@
         console.log(`正在嘗試讀取 ${h_TVSC.toFixed(1)}m, ${theta.toFixed(1)}% 的數據`);
         const fileName = `TVSC_Sections_ALL_Stiffener_${h_TVSC.toFixed(1)}m_${theta.toFixed(1)}%.xlsx`;
         const folderName = `${h_TVSC.toFixed(1)}m`;
-        const filePath = `${FOLDER_ID}/${folderName}/${fileName}`;
+        const query = `name='${fileName}' and '${FOLDER_ID}' in parents and mimeType='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'`;
+
+        console.log(`查找文件：${fileName} 在文件夾：${FOLDER_ID}`);
 
         try {
             const response = await gapi.client.drive.files.list({
-                q: `name='${fileName}' and '${FOLDER_ID}' in parents`,
+                q: query,
                 fields: 'files(id, name)'
             });
 
             if (response.result.files && response.result.files.length > 0) {
                 const fileId = response.result.files[0].id;
+                console.log(`找到文件ID：${fileId}`);
                 const fileResponse = await gapi.client.drive.files.get({
                     fileId: fileId,
                     alt: 'media'
