@@ -1,40 +1,248 @@
-{
- "cells": [
-  {
-   "cell_type": "code",
-   "execution_count": null,
-   "metadata": {},
-   "outputs": [],
-   "source": [
-    "<!DOCTYPE html>\n",
-    "<html lang=\"zh-TW\">\n",
-    "<head>\n",
-    "    <meta charset=\"UTF-8\">\n",
-    "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n",
-    "    <title>TVSC 設計計算器</title>\n",
-    "    <script src=\"https://cdn.tailwindcss.com\"></script>\n",
-    "    <script src=\"https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js\"></script>\n",
-    "    <script src=\"https://apis.google.com/js/api.js\"></script>\n",
-    "    <script src=\"https://accounts.google.com/gsi/client\"></script>\n",
-    "</head>\n",
-    "<body class=\"bg-gray-100\">\n",
-    "    <script>\n",
-    "    const CLIENT_ID = '571858337985-5m8dhopjvokvmnbfsfu8j4gs7hrrd4ut.apps.googleusercontent.com';\n",
-    "    const API_KEY = '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';\n",
-    "    const FOLDER_ID = '1pbF6pg6zW0I75MdztpPvL2urvoefNVyz';\n",
-    "\n",
-    "    // 在這裡添加 JavaScript 代碼\n",
-    "</script>\n",
-    "</body>\n",
-    "</html>"
-   ]
-  }
- ],
- "metadata": {
-  "language_info": {
-   "name": "python"
-  }
- },
- "nbformat": 4,
- "nbformat_minor": 2
-}
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>三段式剪力降伏型耐震間柱之設計</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <script src="https://apis.google.com/js/api.js"></script>
+    <script src="https://accounts.google.com/gsi/client"></script>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto p-4">
+        <div class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
+            <h1 class="text-2xl font-bold mb-4">三段式剪力降伏型耐震間柱之設計</h1>
+            <button id="authorize_button" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">授權訪問 Google Drive</button>
+            <button id="signout_button" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded" style="display: none;">登出</button>
+            <form id="calculatorForm" class="mb-4" style="display: none;">
+                <div class="grid grid-cols-2 gap-4 mt-4">
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-2" for="h_TVSC">
+                            總高度 h_TVSC (m)
+                        </label>
+                        <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="h_TVSC" type="number" step="0.1" required>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-2" for="theta">
+                            目標層間位移角 IDR (%rad)
+                        </label>
+                        <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="theta" type="number" step="0.1" required>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-2" for="d">
+                            斷面深度 d (mm)
+                        </label>
+                        <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="d" type="number" required>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-2" for="bf">
+                            翼板寬度 bf (mm)
+                        </label>
+                        <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="bf" type="number" required>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-2" for="Vy">
+                            耐震間柱之標稱降伏強度 Vy (kN)
+                        </label>
+                        <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="Vy" type="number" step="0.1" required>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-2" for="Kel">
+                            耐震間柱之側向勁度 Keff (kN/mm)
+                        </label>
+                        <input class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="Kel" type="number" step="0.1" required>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between mt-4">
+                    <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" type="submit">
+                        計算
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <div id="results" class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4" style="display: none;">
+            <h2 class="text-xl font-bold mb-4">計算結果</h2>
+            <div id="allResults">
+                <h3 class="text-lg font-semibold mb-2">所有設計結果</h3>
+                <div class="overflow-x-auto">
+                    <table id="allResultsTable" class="min-w-full bg-white"></table>
+                </div>
+            </div>
+            <div id="lightestDesign" class="mt-4">
+                <h3 class="text-lg font-semibold mb-2">總重量最輕的設計結果</h3>
+                <table id="lightestDesignTable" class="min-w-full bg-white"></table>
+            </div>
+            <div id="kwrOptimalDesign" class="mt-4">
+                <h3 class="text-lg font-semibold mb-2">根據KWR最佳化的設計結果</h3>
+                <table id="kwrOptimalDesignTable" class="min-w-full bg-white"></table>
+            </div>
+            <div id="vwrOptimalDesign" class="mt-4">
+                <h3 class="text-lg font-semibold mb-2">根據VWR最佳化的設計結果</h3>
+                <table id="vwrOptimalDesignTable" class="min-w-full bg-white"></table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    const CLIENT_ID = '571858337985-5m8dhopjvokvmnbfsfu8j4gs7hrrd4ut.apps.googleusercontent.com';
+    const API_KEY = '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';
+    const FOLDER_ID = '1pbF6pg6zW0I75MdztpPvL2urvoefNVyz';
+    const SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
+
+    let tokenClient;
+    let gapiInited = false;
+    let gisInited = false;
+
+    function gapiLoaded() {
+        gapi.load('client', initializeGapiClient);
+    }
+
+    async function initializeGapiClient() {
+        await gapi.client.init({
+            apiKey: API_KEY,
+            discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
+        });
+        gapiInited = true;
+        maybeEnableButtons();
+    }
+
+    function gisLoaded() {
+        tokenClient = google.accounts.oauth2.initTokenClient({
+            client_id: CLIENT_ID,
+            scope: SCOPES,
+            callback: '', // defined later
+        });
+        gisInited = true;
+        maybeEnableButtons();
+    }
+
+    function maybeEnableButtons() {
+        if (gapiInited && gisInited) {
+            document.getElementById('authorize_button').style.display = 'inline-block';
+        }
+    }
+
+    function handleAuthClick() {
+        tokenClient.callback = async (resp) => {
+            if (resp.error !== undefined) {
+                throw (resp);
+            }
+            document.getElementById('signout_button').style.display = 'inline-block';
+            document.getElementById('authorize_button').style.display = 'none';
+            document.getElementById('calculatorForm').style.display = 'block';
+        };
+
+        if (gapi.client.getToken() === null) {
+            tokenClient.requestAccessToken({prompt: 'consent'});
+        } else {
+            tokenClient.requestAccessToken({prompt: ''});
+        }
+    }
+
+    function handleSignoutClick() {
+        const token = gapi.client.getToken();
+        if (token !== null) {
+            google.accounts.oauth2.revoke(token.access_token);
+            gapi.client.setToken('');
+            document.getElementById('calculatorForm').style.display = 'none';
+            document.getElementById('results').style.display = 'none';
+            document.getElementById('authorize_button').style.display = 'inline-block';
+            document.getElementById('signout_button').style.display = 'none';
+        }
+    }
+
+    async function loadData(h_TVSC) {
+        const fileName = `${h_TVSC.toFixed(1)}m.csv`;
+        const response = await gapi.client.drive.files.list({
+            q: `name='${fileName}' and '${FOLDER_ID}' in parents`,
+            fields: 'files(id, name)'
+        });
+
+        if (response.result.files && response.result.files.length > 0) {
+            const fileId = response.result.files[0].id;
+            const fileResponse = await gapi.client.drive.files.get({
+                fileId: fileId,
+                alt: 'media'
+            });
+            return Papa.parse(fileResponse.body, { header: true, dynamicTyping: true }).data;
+        } else {
+            throw new Error('File not found');
+        }
+    }
+
+    function filterData(data, d, bf, Vy, Kel) {
+        return data.filter(row => 
+            row.d === d && row.bf === bf && row.Vn_IC > Vy && row.Keff > Kel
+        );
+    }
+
+    document.getElementById('calculatorForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const h_TVSC = parseFloat(document.getElementById('h_TVSC').value);
+        const theta = parseFloat(document.getElementById('theta').value);
+        const d = parseInt(document.getElementById('d').value);
+        const bf = parseInt(document.getElementById('bf').value);
+        const Vy = parseFloat(document.getElementById('Vy').value);
+        const Kel = parseFloat(document.getElementById('Kel').value);
+
+        try {
+            const allData = await loadData(h_TVSC);
+            const filteredData = filterData(allData, d, bf, Vy, Kel);
+
+            if (filteredData.length > 0) {
+                displayResults(filteredData);
+            } else {
+                alert('非常抱歉~沒有找到符合篩選條件的結果。');
+            }
+        } catch (error) {
+            console.error('錯誤:', error);
+            alert('計算過程中出現錯誤，請稍後再試。');
+        }
+    });
+
+    function displayResults(results) {
+        document.getElementById('results').style.display = 'block';
+
+        // 顯示所有結果
+        const allResultsTable = document.getElementById('allResultsTable');
+        allResultsTable.innerHTML = '';
+        if (results.length > 0) {
+            const headers = Object.keys(results[0]);
+            let headerRow = '<tr>' + headers.map(h => `<th class="px-4 py-2 bg-gray-100">${h}</th>`).join('') + '</tr>';
+            let rows = results.map(row => 
+                '<tr>' + headers.map(h => `<td class="border px-4 py-2">${row[h]}</td>`).join('') + '</tr>'
+            ).join('');
+            allResultsTable.innerHTML = headerRow + rows;
+        }
+
+        // 顯示最輕設計
+        const lightestDesign = results.reduce((min, p) => p.W_total < min.W_total ? p : min, results[0]);
+        displayDesign('lightestDesignTable', lightestDesign);
+
+        // 顯示KWR最佳化設計
+        const kwrOptimalDesign = results.reduce((max, p) => p.KWR > max.KWR ? p : max, results[0]);
+        displayDesign('kwrOptimalDesignTable', kwrOptimalDesign);
+
+        // 顯示VWR最佳化設計
+        const vwrOptimalDesign = results.reduce((max, p) => p.VWR > max.VWR ? p : max, results[0]);
+        displayDesign('vwrOptimalDesignTable', vwrOptimalDesign);
+    }
+
+    function displayDesign(tableId, design) {
+        const table = document.getElementById(tableId);
+        table.innerHTML = '';
+        let rows = Object.entries(design).map(([key, value]) => 
+            `<tr><td class="border px-4 py-2 font-bold">${key}</td><td class="border px-4 py-2">${value}</td></tr>`
+        ).join('');
+        table.innerHTML = rows;
+    }
+
+    document.getElementById('authorize_button').addEventListener('click', handleAuthClick);
+    document.getElementById('signout_button').addEventListener('click', handleSignoutClick);
+    </script>
+    <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
+    <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
+</body>
+</html>
